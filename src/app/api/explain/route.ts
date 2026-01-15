@@ -7,10 +7,7 @@ export async function POST(request: Request) {
     const text = body.text?.trim();
 
     if (!text) {
-      return NextResponse.json(
-        { error: "Text is required." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Text is required." }, { status: 400 });
     }
 
     const result = await explainText(text);
