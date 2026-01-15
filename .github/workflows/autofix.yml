@@ -3,7 +3,6 @@ name: Auto-fix lint/format
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-  workflow_dispatch:
 
 permissions:
   contents: write
@@ -18,6 +17,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.head_ref }}
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -28,30 +28,22 @@ jobs:
       - name: Install
         run: npm ci
 
-      - name: Run Prettier
-        run: npm run format
-
       - name: Run ESLint fix
-        run: npx eslint . --fix
+        run: npm run lint -- --fix
 
-      - name: Check for changes
-        id: changes
+      - name: Run format (if available)
         run: |
-          if [ -n "$(git status --porcelain)" ]; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
+          if npm run | grep -q "format"; then
+            npm run format
           else
-            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No format script found."
           fi
 
-      - name: Commit fixes
-        if: steps.changes.outputs.changed == 'true'
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "chore: auto-fix lint/format"
-
-      - name: Comment on PR
-        uses: peter-evans/create-or-update-comment@v4
-        with:
-          issue-number: ${{ github.event.pull_request.number }}
-          body: |
-            ${{ steps.changes.outputs.changed == 'true' && 'Applied prettier/eslint fixes and committed them to this PR.' || 'Auto-fix ran: no changes needed.' }}
+      - name: Commit and push fixes
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git commit -am "chore: auto-fix lint/format"
+            git push
+          fi
