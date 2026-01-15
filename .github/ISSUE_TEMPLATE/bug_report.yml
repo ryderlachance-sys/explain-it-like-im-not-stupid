@@ -1,0 +1,27 @@
+name: Bug report
+description: Report a bug
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe the bug and what you expected instead.
+      placeholder: Clear steps and expected behavior...
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: List the steps so we can reproduce the issue.
+      placeholder: "1. Go to...\n2. Click...\n3. See error..."
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Browser, OS, device, etc.
+      placeholder: "Chrome 121, Windows 11"
