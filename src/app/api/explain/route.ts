@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
-import { explainText } from "../../../lib/llm";
+import { explainText, type ExplainMode } from "../../../lib/llm";
 
 export async function POST(request: Request) {
   try {
-    const body = (await request.json()) as { text?: string };
+    const body = (await request.json()) as { text?: string; mode?: ExplainMode };
     const text = body.text?.trim();
+    const mode = body.mode ?? "normal";
 
     if (!text) {
       return NextResponse.json(
@@ -13,7 +14,11 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = await explainText(text);
+    if (!["quick", "normal", "kid"].includes(mode)) {
+      return NextResponse.json({ error: "Invalid mode." }, { status: 400 });
+    }
+
+    const result = await explainText(text, mode);
     return NextResponse.json(result);
   } catch (error) {
     const message =

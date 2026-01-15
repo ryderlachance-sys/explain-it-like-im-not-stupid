@@ -1,16 +1,29 @@
+export type ExplainMode = "quick" | "normal" | "kid";
+
 export type ExplainResult = {
   explanation: string;
   summary: string;
   nextSteps: string[];
+  needsClarification: boolean;
+  questions?: string[];
 };
 
 const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
 
-export async function explainText(input: string): Promise<ExplainResult> {
+export async function explainText(
+  input: string,
+  mode: ExplainMode,
+): Promise<ExplainResult> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     throw new Error("Missing OPENAI_API_KEY");
   }
+
+  const modeGuidance = {
+    quick: "Be brief and direct. Use the shortest helpful wording.",
+    normal: "Be clear and balanced. Keep it easy to read.",
+    kid: "Explain like I'm 12. Use very simple words and friendly tone.",
+  }[mode];
 
   const prompt = `
 You are a helpful human who explains confusing text. Follow these rules:
@@ -20,11 +33,17 @@ You are a helpful human who explains confusing text. Follow these rules:
 - If input is unclear, say what’s missing instead of guessing.
 - Never claim certainty when it’s vague.
 - No "as an AI model" language.
+- If the input is vague or missing context, set needsClarification to true and ask 1-2 questions.
 
 Output JSON only with keys:
 explanation (2-6 short paragraphs),
 summary (1-2 sentences),
 nextSteps (1-4 bullet items, as array of strings).
+needsClarification (boolean),
+questions (optional array of 1-2 strings).
+
+Mode guidance:
+${modeGuidance}
 
 Input:
 ${input}
@@ -65,14 +84,22 @@ ${input}
     if (
       !parsed.explanation ||
       !parsed.summary ||
-      !Array.isArray(parsed.nextSteps)
+      !Array.isArray(parsed.nextSteps) ||
+      typeof parsed.needsClarification !== "boolean"
     ) {
       throw new Error("Invalid response shape");
     }
+
+    const questions = Array.isArray(parsed.questions)
+      ? parsed.questions.slice(0, 2)
+      : undefined;
+
     return {
       explanation: parsed.explanation,
       summary: parsed.summary,
       nextSteps: parsed.nextSteps.slice(0, 4),
+      needsClarification: parsed.needsClarification,
+      questions,
     };
   } catch (error) {
     throw new Error("Failed to parse LLM response");
