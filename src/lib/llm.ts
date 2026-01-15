@@ -13,6 +13,7 @@ const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
 export async function explainText(
   input: string,
   mode: ExplainMode,
+  answers?: string[],
 ): Promise<ExplainResult> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
@@ -24,6 +25,13 @@ export async function explainText(
     normal: "Be clear and balanced. Keep it easy to read.",
     kid: "Explain like I'm 12. Use very simple words and friendly tone.",
   }[mode];
+
+  const contextBlock =
+    answers && answers.length
+      ? `\n\nUser-provided context:\n${answers
+          .map((answer, index) => `- ${index + 1}. ${answer}`)
+          .join("\n")}`
+      : "";
 
   const prompt = `
 You are a helpful human who explains confusing text. Follow these rules:
@@ -46,7 +54,7 @@ Mode guidance:
 ${modeGuidance}
 
 Input:
-${input}
+${input}${contextBlock}
   `.trim();
 
   const response = await fetch(OPENAI_API_URL, {

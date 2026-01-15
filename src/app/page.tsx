@@ -18,6 +18,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<ExplainMode>("normal");
+  const [answers, setAnswers] = useState<string[]>([]);
 
   const handleExplain = async () => {
     const trimmed = text.trim();
@@ -29,6 +30,7 @@ export default function Home() {
     setLoading(true);
     setError(null);
     setResult(null);
+    setAnswers([]);
 
     try {
       const res = await fetch("/api/explain", {
@@ -44,11 +46,55 @@ export default function Home() {
 
       const data = (await res.json()) as ExplainResult;
       setResult(data);
+      if (data.needsClarification && data.questions?.length) {
+        setAnswers(data.questions.map(() => ""));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleUpdateExplanation = async () => {
+    const trimmed = text.trim();
+    if (!trimmed || !result?.questions?.length) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/explain", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: trimmed, mode, answers }),
+      });
+
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null);
+        throw new Error(payload?.error || "Something went wrong.");
+      }
+
+      const data = (await res.json()) as ExplainResult;
+      setResult(data);
+      if (data.needsClarification && data.questions?.length) {
+        setAnswers(data.questions.map(() => ""));
+      } else {
+        setAnswers([]);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAnswerChange = (index: number, value: string) => {
+    setAnswers((prev) => {
+      const next = [...prev];
+      next[index] = value;
+      return next;
+    });
   };
 
   const handleCopy = async () => {
@@ -170,11 +216,30 @@ export default function Home() {
             {result.needsClarification && result.questions?.length ? (
               <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-slate-900">
                 <h2 className="text-base font-semibold">Quick questions</h2>
-                <ul className="mt-2 list-disc space-y-1 pl-4 text-sm">
-                  {result.questions.map((question) => (
-                    <li key={question}>{question}</li>
+                <div className="mt-3 space-y-3">
+                  {result.questions.map((question, index) => (
+                    <label key={question} className="block text-sm">
+                      <span className="font-medium">{question}</span>
+                      <input
+                        className="mt-2 w-full rounded-md border border-amber-200 bg-white p-2 text-sm outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400"
+                        value={answers[index] ?? ""}
+                        onChange={(event) =>
+                          handleAnswerChange(index, event.target.value)
+                        }
+                        type="text"
+                      />
+                    </label>
                   ))}
-                </ul>
+                  <button
+                    className="rounded-md bg-amber-600 px-4 py-2 text-sm text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:bg-amber-300"
+                    onClick={handleUpdateExplanation}
+                    disabled={
+                      loading || answers.some((answer) => !answer.trim())
+                    }
+                  >
+                    {loading ? "Thinking…" : "Update explanation"}
+                  </button>
+                </div>
               </div>
             ) : null}
 
