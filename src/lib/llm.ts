@@ -109,7 +109,7 @@ ${input}${contextBlock}
       needsClarification: parsed.needsClarification,
       questions,
     };
-  } catch (error) {
+  } catch {
     throw new Error("Failed to parse LLM response");
   }
 }

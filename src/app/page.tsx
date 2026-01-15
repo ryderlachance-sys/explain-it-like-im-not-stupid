@@ -12,6 +12,24 @@ type ExplainResult = {
 
 type ExplainMode = "quick" | "normal" | "kid";
 
+const EXAMPLE_PROMPTS = [
+  {
+    id: "teacher",
+    label: "Teacher instructions",
+    text: "My teacher said: 'Write a rhetorical analysis with at least 2 sources and MLA format.' What does that mean and what should I do first?",
+  },
+  {
+    id: "awkward",
+    label: "Awkward text",
+    text: "Someone texted: 'k.' What does that usually mean and how should I respond without sounding mad?",
+  },
+  {
+    id: "tech",
+    label: "Tech error",
+    text: "Chrome says: DNS_PROBE_FINISHED_NXDOMAIN. What is that and how do I fix it?",
+  },
+] as const;
+
 export default function Home() {
   const [text, setText] = useState("");
   const [result, setResult] = useState<ExplainResult | null>(null);
@@ -19,6 +37,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<ExplainMode>("normal");
   const [answers, setAnswers] = useState<string[]>([]);
+  const [copied, setCopied] = useState<string | null>(null);
 
   const handleExplain = async () => {
     const trimmed = text.trim();
@@ -31,6 +50,7 @@ export default function Home() {
     setError(null);
     setResult(null);
     setAnswers([]);
+    setCopied(null);
 
     try {
       const res = await fetch("/api/explain", {
@@ -99,6 +119,7 @@ export default function Home() {
 
   const handleCopy = async () => {
     if (!result) return;
+    setCopied(null);
     const textToCopy = [
       "Plain English Explanation",
       result.explanation,
@@ -111,22 +132,44 @@ export default function Home() {
     ].join("\n");
 
     await navigator.clipboard.writeText(textToCopy);
+    setCopied("result");
   };
 
   const handleCopyForTexting = async () => {
     if (!result) return;
+    setCopied(null);
     const textToCopy = [
-      "Plain English Explanation",
+      "Explain-it-like-im-not-stupid",
+      "",
+      "Explanation:",
       result.explanation,
       "",
-      "Short Summary",
+      "Summary:",
       result.summary,
       "",
-      "Next steps",
+      "Next steps:",
       ...result.nextSteps.map((step) => `- ${step}`),
+      "",
+      "— explain-it-like-im-not-stupid.vercel.app",
     ].join("\n");
 
     await navigator.clipboard.writeText(textToCopy);
+    setCopied("texting");
+  };
+
+  const handleStartOver = () => {
+    setResult(null);
+    setAnswers([]);
+    setError(null);
+    setCopied(null);
+  };
+
+  const handleExampleClick = (exampleText: string) => {
+    setText(exampleText);
+    setResult(null);
+    setAnswers([]);
+    setError(null);
+    setCopied(null);
   };
 
   return (
@@ -173,8 +216,20 @@ export default function Home() {
           <label className="text-sm font-medium text-slate-700">
             Confusing text
           </label>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {EXAMPLE_PROMPTS.map((prompt) => (
+              <button
+                key={prompt.id}
+                className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-700 hover:bg-slate-100"
+                onClick={() => handleExampleClick(prompt.text)}
+                type="button"
+              >
+                {prompt.label}
+              </button>
+            ))}
+          </div>
           <textarea
-            className="mt-2 h-48 w-full rounded-md border border-slate-300 p-3 text-base outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500"
+            className="mt-3 h-48 w-full rounded-md border border-slate-300 p-3 text-base outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500"
             placeholder="Example: The insurer may deny coverage if material misrepresentation is found in the application or underwriting file..."
             value={text}
             onChange={(event) => setText(event.target.value)}
@@ -205,6 +260,19 @@ export default function Home() {
             >
               Copy for texting
             </button>
+            <button
+              className="rounded-md border border-slate-300 px-4 py-2 text-slate-700 hover:bg-slate-50"
+              onClick={handleStartOver}
+              type="button"
+            >
+              Start over
+            </button>
+            {copied === "result" ? (
+              <span className="text-sm text-slate-600">Copied!</span>
+            ) : null}
+            {copied === "texting" ? (
+              <span className="text-sm text-slate-600">Copied for texting!</span>
+            ) : null}
             {error ? (
               <span className="text-sm text-red-600">{error}</span>
             ) : null}
